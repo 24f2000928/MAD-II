@@ -1,0 +1,40 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Monthly Examination Report - {{ month }}</title></head>
+<body style="font-family:Arial,sans-serif;background:#f4f6f9;margin:0;padding:24px">
+<div style="max-width:760px;margin:auto;background:#fff;border-radius:10px;overflow:hidden;border:1px solid #dee2e6">
+  <div style="background:#212529;color:#fff;padding:22px 26px">
+    <h1 style="margin:0;font-size:22px">Monthly Examination Report</h1>
+    <div style="opacity:.8">{{ month }} &middot; generated {{ generated }}</div>
+  </div>
+  <div style="padding:24px">
+    <table style="width:100%;border-collapse:separate;border-spacing:8px">
+      <tr>
+        {% for label, value, color in [("Exams conducted", exams_conducted, "#0d6efd"), ("Students evaluated", students_evaluated, "#198754"), ("Completed bookings", completed_bookings, "#6f42c1"), ("Pending evaluations", pending_evaluations, "#dc3545")] %}
+        <td style="background:#f8f9fa;border-left:4px solid {{ color }};padding:14px;border-radius:6px;width:25%">
+          <div style="font-size:26px;font-weight:bold;color:{{ color }}">{{ value }}</div>
+          <div style="color:#6c757d;font-size:13px">{{ label }}</div>
+        </td>
+        {% endfor %}
+      </tr>
+    </table>
+    <p style="color:#6c757d">Total bookings: {{ total_bookings }} &middot; Absent: {{ absent }} &middot; Cancelled: {{ cancelled }} &middot; Evaluations submitted: {{ evaluations }}</p>
+
+    <h3>Most active examiners</h3>
+    {% if active_examiners %}
+    <table style="width:100%;border-collapse:collapse">
+      <tr style="background:#e9ecef"><th style="padding:8px;text-align:left">#</th><th style="padding:8px;text-align:left">Examiner</th><th style="padding:8px">Evaluations</th></tr>
+      {% for name, n in active_examiners %}<tr><td style="padding:8px;border-top:1px solid #dee2e6">{{ loop.index }}</td><td style="padding:8px;border-top:1px solid #dee2e6">{{ name }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ n }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p style="color:#6c757d">No evaluations this month.</p>{% endif %}
+
+    <h3>Examination breakdown</h3>
+    {% if per_exam %}
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr style="background:#e9ecef"><th style="padding:8px;text-align:left">Examination</th><th style="padding:8px">Course</th><th style="padding:8px">Type</th><th style="padding:8px">Booked</th><th style="padding:8px">Evaluated</th><th style="padding:8px">Avg marks</th></tr>
+      {% for r in per_exam %}<tr><td style="padding:8px;border-top:1px solid #dee2e6">{{ r.name }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ r.course }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ r.type }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ r.booked }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ r.evaluated }}</td><td style="padding:8px;border-top:1px solid #dee2e6;text-align:center">{{ r.avg }} / {{ r.max }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p style="color:#6c757d">No examinations were scheduled this month.</p>{% endif %}
+  </div>
+  <div style="background:#f8f9fa;color:#6c757d;font-size:12px;padding:12px 24px">Examination Management Portal &middot; automated report</div>
+</div>
+</body></html>

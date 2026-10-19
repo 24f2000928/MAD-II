@@ -1,0 +1,14 @@
+<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;border:1px solid #dee2e6;border-radius:8px;overflow:hidden">
+  <div style="background:#198754;color:#fff;padding:16px 20px"><h2 style="margin:0">Result Published</h2></div>
+  <div style="padding:20px">
+    <p>Hi {{ student.name }},</p>
+    <p>Results for <b>{{ exam.name }}</b> ({{ exam.course.code }}) have been published.</p>
+    <p style="font-size:22px"><b>{{ '%.2f' % ev.total_marks }}</b> / {{ exam.max_marks }}</p>
+    <table style="width:100%;border-collapse:collapse;border:1px solid #dee2e6">
+      <tr style="background:#f8f9fa"><th style="padding:6px;text-align:left">Criterion</th><th style="padding:6px">Marks</th></tr>
+      {% for s in ev.scores %}<tr><td style="padding:6px;border-top:1px solid #dee2e6">{{ s.criterion.name }}</td><td style="padding:6px;border-top:1px solid #dee2e6;text-align:center">{{ s.marks }} / {{ s.criterion.max_marks }}</td></tr>{% endfor %}
+    </table>
+    {% if ev.remarks %}<p><b>Examiner remarks:</b> {{ ev.remarks }}</p>{% endif %}
+    <p>Log in to the portal to view and download your scorecard.</p>
+  </div>
+</div>
