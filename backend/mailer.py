@@ -1,3 +1,4 @@
+"""Outbound notifications: SMTP email and Google Chat webhooks (stdlib only)."""
 import json
 import logging
 import smtplib
@@ -10,15 +11,16 @@ from config import Config
 
 log = logging.getLogger(__name__)
 
+
 def send_email(to, subject, html, attachments=None):
     msg = MIMEMultipart()
-    msg['From'] = Config.MAIL_SENDER
-    msg['To'] = to
-    msg['Subject'] = subject
-    msg.attach(MIMEText(html, 'html'))
-    for name, data,subtype in attachments or []:
-        part = MIMEApplication(data, _subtype = subtype)
-        part.add_header('Content-Disposition', 'attachment', filename=name)
+    msg["From"] = Config.MAIL_SENDER
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.attach(MIMEText(html, "html"))
+    for name, data, subtype in attachments or []:
+        part = MIMEApplication(data, _subtype=subtype)
+        part.add_header("Content-Disposition", "attachment", filename=name)
         msg.attach(part)
     try:
         with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as s:
@@ -27,12 +29,13 @@ def send_email(to, subject, html, attachments=None):
                 s.login(Config.SMTP_USER, Config.SMTP_PASSWORD)
             s.send_message(msg)
         return True
-    except Exception as e:
+    except Exception as e:  # never let mail failures break a job
         log.warning("Email to %s failed: %s", to, e)
         return False
 
-def g_chat(text, webhook=None):
-    url = webhook or Config.G_CHAT_WEBHOOK_URL
+
+def send_gchat(text, webhook=None):
+    url = webhook or Config.GCHAT_WEBHOOK_URL
     if not url:
         return False
     req = urllib.request.Request(url, data=json.dumps({"text": text}).encode(),
@@ -43,4 +46,3 @@ def g_chat(text, webhook=None):
     except Exception as e:
         log.warning("Google Chat webhook failed: %s", e)
         return False
-

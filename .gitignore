@@ -4,3 +4,8 @@ __pycache__/
 backend/instance/
 backend/exports/
 celerybeat-schedule*
+
+# local-only docs (report has placeholders)
+Project_Report.docx
+er_diagram.png
+~$*.docx

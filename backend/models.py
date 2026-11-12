@@ -1,13 +1,16 @@
 from datetime import datetime, date
 
 from werkzeug.security import generate_password_hash, check_password_hash
+
 from extensions import db
 
+# ---- enumerations (stored as plain strings) ----
 ROLES = ("admin", "examiner", "student")
 EXAM_TYPES = ("Viva", "Practical", "Project Demo", "Assessment")
 EXAM_STATUSES = ("Draft", "Slot Creation", "Booking Open", "Closed", "Completed")
 SLOT_STATUSES = ("Available", "Full", "Cancelled", "Completed")
 BOOKING_STATUSES = ("Booked", "Cancelled", "Completed", "Absent")
+
 
 def iso(v):
     if v is None:
@@ -16,12 +19,14 @@ def iso(v):
         return v.isoformat(timespec="seconds")
     if isinstance(v, date):
         return v.isoformat()
-    return v.strfttime("%H:%M")
+    return v.strftime("%H:%M")
+
 
 class User(db.Model):
+    """Unified user model. `role` differentiates admin / examiner / student."""
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False, index= True)
-    password_hash = db.Column(db.String(128), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(256), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20))
     role = db.Column(db.String(20), nullable=False, index=True)
@@ -48,6 +53,7 @@ class User(db.Model):
             d.update(self.examiner_profile.to_dict())
         return d
 
+
 class StudentProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
@@ -58,15 +64,6 @@ class StudentProfile(db.Model):
     def to_dict(self):
         return {"roll_no": self.roll_no, "program": self.program, "year": self.year}
 
-class ExaminerProfile(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
-    department = db.Column(db.String(100))
-    designation = db.Column(db.String(100))
-    status = db.Column(db.String(20), default="Active")  # Active / On Leave / Inactive
-
-    def to_dict(self):
-        return {"department": self.department, "designation": self.designation, "examiner_status": self.status}
 
 class ExaminerProfile(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -77,6 +74,7 @@ class ExaminerProfile(db.Model):
 
     def to_dict(self):
         return {"department": self.department, "designation": self.designation, "examiner_status": self.status}
+
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -95,11 +93,13 @@ class Course(db.Model):
             "credits": self.credits, "status": self.status, "exam_count": self.exams.count(),
         }
 
+
 exam_examiners = db.Table(
     "exam_examiner",
     db.Column("exam_id", db.Integer, db.ForeignKey("examination.id"), primary_key=True),
     db.Column("examiner_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
 )
+
 
 class Examination(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -138,6 +138,7 @@ class Examination(db.Model):
             d["rubric"] = [r.to_dict() for r in self.rubric]
         return d
 
+    # --- period helpers used to enforce business rules ---
     def slot_creation_allowed(self, today=None):
         today = today or date.today()
         return (self.status == "Slot Creation"
@@ -150,6 +151,7 @@ class Examination(db.Model):
                 and (self.booking_start is None or self.booking_start <= today)
                 and (self.booking_end is None or today <= self.booking_end))
 
+
 class RubricCriterion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey("examination.id"), nullable=False)
@@ -161,6 +163,7 @@ class RubricCriterion(db.Model):
     def to_dict(self):
         return {"id": self.id, "exam_id": self.exam_id, "name": self.name, "max_marks": self.max_marks,
                 "weightage": self.weightage, "description": self.description}
+
 
 class Slot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -192,6 +195,7 @@ class Slot(db.Model):
             "meeting_link": self.meeting_link,
             "booked_count": self.bookings.filter(Booking.status != "Cancelled").count(),
         }
+
 
 class Booking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -231,6 +235,7 @@ class Booking(db.Model):
             d["evaluation"] = self.evaluation.to_dict() if self.evaluation else None
         return d
 
+
 class Evaluation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     booking_id = db.Column(db.Integer, db.ForeignKey("booking.id"), unique=True, nullable=False)
@@ -254,6 +259,7 @@ class Evaluation(db.Model):
             "scores": [s.to_dict() for s in self.scores],
         }
 
+
 class EvaluationScore(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     evaluation_id = db.Column(db.Integer, db.ForeignKey("evaluation.id"), nullable=False)
@@ -268,6 +274,7 @@ class EvaluationScore(db.Model):
                 "max_marks": self.criterion.max_marks, "weightage": self.criterion.weightage,
                 "marks": self.marks, "comment": self.comment}
 
+
 class RescheduleLog(db.Model):
     """History of admin reschedules / examiner reassignments."""
     id = db.Column(db.Integer, primary_key=True)
@@ -277,6 +284,7 @@ class RescheduleLog(db.Model):
     reason = db.Column(db.String(300))
     changed_by = db.Column(db.Integer, db.ForeignKey("user.id"))
     changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)

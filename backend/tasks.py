@@ -14,9 +14,11 @@ from models import User, Examination, Slot, Booking, Evaluation, Notification
 jinja = Environment(loader=FileSystemLoader(os.path.join(BASE_DIR, "mail_templates")),
                     autoescape=select_autoescape(["html"]))
 
-#----A. Daily Examination Reminder-----
+
+# ------------------------------------------------ a. daily examination reminder
 @celery.task(name="tasks.daily_reminders")
 def daily_reminders():
+    """Remind students of examinations scheduled today/tomorrow via email + Google Chat."""
     start = date.today()
     end = start + timedelta(days=Config.REMINDER_DAYS_AHEAD)
     bookings = (Booking.query.join(Slot)
@@ -27,7 +29,7 @@ def daily_reminders():
     for b in bookings:
         s, e = b.slot, b.exam
         html = tpl.render(student=b.student, exam=e, slot=s, examiner=s.examiner)
-        send_email(b.student.email, f"Reminder: {e.name} on {s.date: %d %b %Y}", html)
+        send_email(b.student.email, f"Reminder: {e.name} on {s.date:%d %b %Y}", html)
         db.session.add(Notification(user_id=b.student_id,
                                     message=f"Reminder: '{e.name}' on {s.date} at {s.start_time:%H:%M}."))
         chat_lines.append(f"• *{e.name}* ({e.course.code}) — {b.student.name}: {s.date:%d %b} "
@@ -38,21 +40,23 @@ def daily_reminders():
         send_gchat("📅 *Upcoming examinations*\n" + "\n".join(chat_lines))
     return {"reminders_sent": len(bookings)}
 
-#----B. Monthly Examination Report-----
+
+# --------------------------------------------------- b. monthly examination report
 def build_monthly_stats(first, last):
     in_month = Slot.date.between(first, last)
     exams_conducted = (db.session.query(Examination).join(Slot)
-                        .filter(in_month).distinct().count())
+                       .filter(in_month).distinct().count())
     evaluations = (Evaluation.query.filter(Evaluation.status == "Submitted",
                                            Evaluation.evaluated_at >= datetime.combine(first, datetime.min.time()),
                                            Evaluation.evaluated_at < datetime.combine(last + timedelta(days=1),
-                                                                                      datetime.min.time()))).all()
+                                                                                      datetime.min.time()))
+                   .all())
     month_bookings = Booking.query.join(Slot).filter(in_month).all()
     completed = [b for b in month_bookings if b.status == "Completed"]
     pending = [b for b in month_bookings if b.status == "Booked"]
     absent = [b for b in month_bookings if b.status == "Absent"]
     cancelled = [b for b in month_bookings if b.status == "Cancelled"]
-    active = Counter(ev.examiner for ev in evaluations).most_common(5)
+    active = Counter(ev.examiner.name for ev in evaluations).most_common(5)
 
     per_exam = {}
     for b in month_bookings:
@@ -77,8 +81,10 @@ def build_monthly_stats(first, last):
         "per_exam": list(per_exam.values()),
     }
 
+
 @celery.task(name="tasks.monthly_report")
 def monthly_report(year=None, month=None):
+    """Runs on the 1st of every month and reports on the previous month."""
     if year and month:
         first = date(year, month, 1)
     else:
@@ -98,13 +104,14 @@ def monthly_report(year=None, month=None):
     db.session.commit()
     return {"month": stats["month"], "emailed": sent, "file": os.path.basename(path)}
 
-#---C. User-triggered CSV export-----
+
+# ------------------------------------------- c. user-triggered CSV export (async)
 @celery.task(name="tasks.export_history_csv")
 def export_history_csv(student_id):
     student = db.session.get(User, student_id)
     bookings = Booking.query.filter_by(student_id=student_id).order_by(Booking.booked_at).all()
     os.makedirs(Config.EXPORT_DIR, exist_ok=True)
-    filename = f"history_{student_id}_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    filename = f"history_{student_id}_{datetime.now():%Y%m%d%H%M%S}.csv"
     roll = student.student_profile.roll_no if student.student_profile else ""
     with open(os.path.join(Config.EXPORT_DIR, filename), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
@@ -117,6 +124,7 @@ def export_history_csv(student_id):
                         b.slot.date.isoformat(), f"{b.slot.start_time:%H:%M}-{b.slot.end_time:%H:%M}",
                         b.slot.examiner.name, ev.total_marks if show else "Not published",
                         b.exam.max_marks, b.status])
+    # alert once completed: in-app notification + email
     db.session.add(Notification(user_id=student_id, message="Your examination history CSV is ready to download.",
                                 link=f"/api/student/exports/{filename}"))
     db.session.commit()
@@ -125,7 +133,8 @@ def export_history_csv(student_id):
                f"records) is ready. Download it from your dashboard.</p>")
     return {"user_id": student_id, "file": filename, "rows": len(bookings)}
 
-#----D. Result Publication Emails----
+
+# ---------------------------------------------- result publication emails
 @celery.task(name="tasks.send_result_emails")
 def send_result_emails(exam_id):
     exam = db.session.get(Examination, exam_id)
@@ -135,4 +144,3 @@ def send_result_emails(exam_id):
         send_email(ev.booking.student.email, f"Result published: {exam.name}",
                    tpl.render(student=ev.booking.student, exam=exam, ev=ev))
     return {"emails": len(evals)}
-    

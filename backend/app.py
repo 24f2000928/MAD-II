@@ -1,12 +1,13 @@
 import os
 
-from flask import Flask, config, render_template, send_from_directory, jsonify
+from flask import Flask, render_template, send_from_directory, jsonify
 
 from config import Config, BASE_DIR
 from extensions import db, jwt, cache
 from utils import ApiError
 
 FRONTEND_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "frontend"))
+
 
 def _redis_available(url):
     try:
@@ -16,15 +17,18 @@ def _redis_available(url):
     except Exception:
         return False
 
+
 def create_admin():
+    """Create the one and only admin programmatically (no admin registration exists)."""
     from models import User
     if not User.query.filter_by(role="admin").first():
-        admin = User(email=Config.ADMIN_EMAIL, name = Config.ADMIN_NAME, role="admin")
+        admin = User(email=Config.ADMIN_EMAIL, name=Config.ADMIN_NAME, role="admin")
         admin.set_password(Config.ADMIN_PASSWORD)
         db.session.add(admin)
         db.session.commit()
 
-def create_app(config = Config):
+
+def create_app(config=Config):
     app = Flask(__name__, template_folder=FRONTEND_DIR,
                 static_folder=os.path.join(FRONTEND_DIR, "static"), static_url_path="/static")
     app.config.from_object(config)
@@ -67,6 +71,7 @@ def create_app(config = Config):
     def expired_token(header, payload):
         return jsonify({"message": "Session expired, please log in again"}), 401
 
+    # Jinja2 is used only to serve the single entry point; all UI is VueJS.
     @app.route("/")
     def index():
         return render_template("index.html")
@@ -80,7 +85,7 @@ def create_app(config = Config):
         return send_from_directory(FRONTEND_DIR, "sw.js", mimetype="application/javascript")
 
     with app.app_context():
-        import models
+        import models  # noqa: F401  (register tables)
         db.create_all()
         create_admin()
 

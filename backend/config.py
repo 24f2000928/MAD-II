@@ -3,6 +3,7 @@ from datetime import timedelta
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "emp-dev-secret-key-change-me-in-production-0001")
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "emp-jwt-secret-key-change-me-in-production-0001")
@@ -11,27 +12,32 @@ class Config:
     SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "instance", "emp.sqlite3")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Redis is used for caching (db 0) and as the Celery broker/backend (db 1, 2)
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379")
     CACHE_TYPE = "RedisCache"
     CACHE_REDIS_URL = REDIS_URL + "/0"
-    CACHE_DEFAULT_TIMEOUT = 300  
+    CACHE_DEFAULT_TIMEOUT = 300
     CELERY_BROKER_URL = REDIS_URL + "/1"
     CELERY_RESULT_BACKEND = REDIS_URL + "/2"
 
+    # The single admin, created programmatically on first start
     ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@emp.com")
     ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
     ADMIN_NAME = "Administrator"
 
+    # Mail: defaults point at MailHog (https://github.com/mailhog/MailHog) for local demos
     SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
     SMTP_PORT = int(os.environ.get("SMTP_PORT", 1025))
     SMTP_USER = os.environ.get("SMTP_USER", "")
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
     MAIL_SENDER = os.environ.get("MAIL_SENDER", "noreply@emp.com")
 
+    # Optional Google Chat space webhook for daily reminders
     GCHAT_WEBHOOK_URL = os.environ.get("GCHAT_WEBHOOK_URL", "")
 
+    # Scheduled job timings (24h clock, server local time)
     REMINDER_HOUR = int(os.environ.get("REMINDER_HOUR", 8))
     REMINDER_MINUTE = int(os.environ.get("REMINDER_MINUTE", 0))
     REMINDER_DAYS_AHEAD = 1
 
-    EXPORT_DIR = os.path.join(BASE_DIR, "instance", "exports")
+    EXPORT_DIR = os.path.join(BASE_DIR, "exports")

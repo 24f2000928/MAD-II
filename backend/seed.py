@@ -1,9 +1,11 @@
-"""
-Optional demo data that creates courses, examiners, students and examinations in every lifecycle with dates relative to today so that demo always works.
-Passwords: examiners-> examiner123, students-> student123
-"""
+"""Optional demo data. Run once after the first start:  python seed.py
 
+Creates courses, examiners, students and examinations in every lifecycle state,
+with dates relative to today so the demo always works.
+Passwords: examiners -> examiner123, students -> student123
+"""
 from datetime import date, time, timedelta, datetime
+
 from app import app
 from extensions import db
 from models import (User, StudentProfile, ExaminerProfile, Course, Examination, RubricCriterion,
@@ -12,11 +14,12 @@ from utils import compute_total
 
 T = date.today()
 
+
 def user(email, name, role, pw, **profile):
     u = User.query.filter_by(email=email).first()
     if u:
         return u
-    u = User(email=email, name=name, role=role, phone="98765" + str(abs(hash(email))% 100000).zfill(5))
+    u = User(email=email, name=name, role=role, phone="98765" + str(abs(hash(email)) % 100000).zfill(5))
     u.set_password(pw)
     if role == "student":
         u.student_profile = StudentProfile(**profile)
@@ -24,6 +27,7 @@ def user(email, name, role, pw, **profile):
         u.examiner_profile = ExaminerProfile(**profile)
     db.session.add(u)
     return u
+
 
 def run():
     if Course.query.first():
@@ -62,20 +66,21 @@ def run():
                    ("Code walkthrough", 10, 40, "Ability to explain own code"),
                    ("Communication", 5, 20, "Clarity and confidence")]
 
+    # 1. completed + published
     e1 = exam(c2, "DBMS Viva", "Viva", "Completed", 100, (-30, -20), (-19, -12), [ex1, ex2], published=True)
     rubric(e1, viva_rubric)
-
+    # 2. closed, awaiting evaluation
     e2 = exam(c1, "MAD-II Project Viva", "Project Demo", "Closed", 100, (-15, -8), (-7, -2), [ex1, ex3],
               instr="Demo your project live. Keep the code and report ready.")
     rubric(e2, [("Functionality", 20, 50, "Core features working"), ("Code quality", 10, 25, "Structure & readability"),
                 ("Viva answers", 10, 25, "Answers to examiner questions")])
-    
+    # 3. booking open now
     e3 = exam(c3, "MLP Practical", "Practical", "Booking Open", 50, (-6, -2), (-1, 5), [ex2, ex3])
     rubric(e3, [("Model building", 20, 60, "Pipeline & model"), ("Evaluation", 10, 40, "Metrics & analysis")])
-
+    # 4. slot creation open now
     e4 = exam(c1, "MAD-II Mid-term Assessment", "Assessment", "Slot Creation", 40, (-1, 4), (5, 10), [ex1, ex2])
     rubric(e4, viva_rubric)
-    
+    # 5. draft
     exam(c2, "DBMS End-term Viva", "Viva", "Draft", 100, (10, 15), (16, 20), [ex1])
 
     def slot(e, ex, day, h, cap=3, status="Available"):
@@ -108,22 +113,23 @@ def run():
         b.status = "Completed"
         db.session.add(ev)
 
+    # e1: completed & published
     s1, s2 = slot(e1, ex1, -10, 10, status="Completed"), slot(e1, ex2, -10, 14, status="Completed")
     for i, st in enumerate(students[:5]):
         b = book(st, s1 if i < 3 else s2)
         evaluate(b, b.slot.examiner, [0.9 - i * 0.1, 0.8, 0.7 + i * 0.05], ["Excellent", "Good grasp", "Well done", "Needs revision", "Fair"][i])
-    
+    # e2: past slots, some evaluated, some pending
     s3, s4 = slot(e2, ex1, -1, 10), slot(e2, ex3, -1, 15)
     for i, st in enumerate(students):
         b = book(st, s3 if i % 2 == 0 else s4)
         if i < 2:
             evaluate(b, b.slot.examiner, [0.85, 0.9, 0.75], "Solid project")
-    
+    # e3: future slots, booking open
     s5, s6, _ = slot(e3, ex2, 7, 9, cap=2), slot(e3, ex3, 7, 11, cap=3), slot(e3, ex2, 8, 14, cap=2)
     book(students[0], s5)
-    book(students[1], s5)  
+    book(students[1], s5)  # s5 becomes Full
     book(students[2], s6)
-    
+    # e4: one slot already created
     slot(e4, ex1, 7, 10)
 
     db.session.commit()
